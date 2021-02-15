@@ -9,8 +9,8 @@ fileName = input(str("Hello friend! What is the name of the file?"))
 
 
 file_stats = os.stat(fileName)#gets file information
-NR = math.ceil(file_stats.st_size / 1024) #takes number /1024, rounds down
-number_receives = bytes(NR) #converts number to bytes
+NR = math.(file_stats.st_size / 1024) #takes number /1024, rounds down
+number_receives = str(NR).encode('utf8') #converts number to bytes
 print(f'Number of Receives is {NR}')
 
 
