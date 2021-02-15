@@ -8,7 +8,8 @@ print("The server is ready to receive")
 myNewFile = open("output.jpg",'wb')
 a=0 #counter variable
 number_receives, clientAddress = serverSocket.recvfrom(1024) #receive number of receives
-
+number_receives = str(number_receives, 'utf8')
+number_receives = int(number_receives)
 print(f'Number of Receives {number_receives}') #prints to confirm operational
 while True:
     message, clientAddress = serverSocket.recvfrom(1024)
