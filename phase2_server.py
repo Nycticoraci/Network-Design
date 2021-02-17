@@ -5,8 +5,8 @@ serverPort = 12000
 serverSocket = socket(AF_INET, SOCK_DGRAM)
 serverSocket.bind(('', serverPort))
 
-print("The server is ready to receive")
-myNewFile = open('output.jpg','wb')
+print('The server is ready to receive')
+myNewFile = open('output.jpg', 'wb')
 
 number_receives, clientAddress = serverSocket.recvfrom(1024)   # Receive number of receives from client
 number_receives = str(number_receives, 'utf8')
@@ -18,7 +18,7 @@ for receive in range(int(number_receives)):                    # Rewrites the im
         break
     else:
         myNewFile.write(message)
-        print("Got it! Thanks")
+        print('Got it! Thanks [' + str(receive + 1) + '/' + str(number_receives) + ']')
     
 myNewFile.close()
 serverSocket.close()
