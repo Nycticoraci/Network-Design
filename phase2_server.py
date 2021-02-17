@@ -18,6 +18,7 @@ for receive in range(int(number_receives)):                    # Rewrites the im
         break
     else:
         myNewFile.write(message)
+        # I added an increment here to keep track of where in the process the script is
         print('Got it! Thanks [' + str(receive + 1) + '/' + str(number_receives) + ']')
     
 myNewFile.close()
