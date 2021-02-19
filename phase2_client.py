@@ -26,6 +26,14 @@ def Make_Packet(packet, data):
         packet_size = userFile.read(1024)
     return packet_list
 
+outputName = fileName
+i = outputName.rfind('\\')                                  #Get the last path index
+#print(i)                                                   #Check the index of the last path (file name)
+print('File name is: '+ outputName[i+1:])                   #Verify user input is correct
+print('File path is: '+ fileName)
+outputName = outputName[i+1:].encode('utf8')                #Encode file name
+clientSocket.sendto(outputName,(serverName, serverPort))    #Send file name to server
+time.sleep(0.02)                             # Pause the process so that the server does not mix up the packets for file name and fize size
 file_size = os.stat(fileName).st_size        # Gets size of the file in bytes
 NR = str(math.ceil(file_size / 1024))        # Returns ceiling of filesize divided by 1024
 print('Number of Receives is ' + NR)         # Prints number of packets to send

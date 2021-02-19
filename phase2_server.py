@@ -7,9 +7,12 @@ serverSocket.bind(('', serverPort))
 
 while True:
     print('The server is ready to receive')
+    outputName, clientAddress = serverSocket.recvfrom(1024)           # Receive name of output file
     number_receives, clientAddress = serverSocket.recvfrom(1024)      # Receive number of receives from client
-    myNewFile = open('output.jpg', 'wb')
+    outputName = str(outputName, 'utf8')
+    output = open(outputName, 'wb')
     number_receives = str(number_receives, 'utf8')
+    print('Output File Name: '+ outputName)
     print('Number of Receives: ' + number_receives)                   # Prints to confirm the number was successfully received
 
     for receive in range(int(number_receives)):                    # Rewrites the image one packet at a time
@@ -17,9 +20,9 @@ while True:
         if not message:                                            # given by "number_receives"
             break
         else:
-            myNewFile.write(message)
+            output.write(message)
             # I added an increment here to keep track of where in the process the script is
             print('Got it! Thanks [' + str(receive + 1) + '/' + str(number_receives) + ']')
-    
+
 myNewFile.close()
 serverSocket.close()
