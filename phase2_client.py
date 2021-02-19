@@ -13,7 +13,7 @@ clientSocket = socket(AF_INET, SOCK_DGRAM)
 root = tk.Tk()
 root.withdraw()
 fileName = simpledialog.askstring(title = 'Client Input',
-                                  prompt = 'Hello friend! What is the path of your file?')
+                                  prompt = 'Hello friend! What is the path for your file?')
 
 # Creates a list where each index holds 1024 bytes of the image file
 # in sequential order
