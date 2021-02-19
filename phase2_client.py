@@ -2,11 +2,18 @@ from socket import *
 import time
 import os
 import math
+import tkinter as tk
+from tkinter import simpledialog
 
 serverName = 'localhost'
 serverPort = 12000
 clientSocket = socket(AF_INET, SOCK_DGRAM)
-fileName = str(input('Hello friend! What is the name of the file?'))
+
+# Creates simple popup GUI
+root = tk.Tk()
+root.withdraw()
+fileName = simpledialog.askstring(title = 'Client Input',
+                                  prompt = 'Hello friend! What is the name of the file?')
 
 # Creates a list where each index holds 1024 bytes of the image file
 # in sequential order
