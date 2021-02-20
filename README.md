@@ -1,4 +1,17 @@
-# Network-Design
+# Phase Two ReadMe
+
+### Team Members:
+1. Jaki Giggi
+2. Jack Flood
+3. Drew Bowler
+4. Tyler Almachar 
+
+### Environment
+  Operating System: 
+
+### Instructions
+
+### Other Notes
 
 Sending side:
 1. Accept the data to be sent
