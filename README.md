@@ -7,9 +7,20 @@
 4. Tyler Almachar 
 
 ### Environment
-  Operating System: 
+  Operating System: Windows
+  Language: Python v3.9.1
 
 ### Instructions
+1. Download files
+2. Open two CMD or bash shells, navigate to file location if necessary
+3. Start the server: 
+    ex. python phase2_server.py
+5. Start the client:
+    ex. python phase2_client.py
+7. Enter the path to your file into the window prompt 
+    ex. C:\Users\jacqu\OneDrive\Network Design\jadzia.bmp
+8. Hit enter
+9. Check file destination (where the python source files are)
 
 ### Other Notes
 
