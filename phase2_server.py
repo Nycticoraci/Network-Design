@@ -10,7 +10,7 @@ while True:
     outputName, clientAddress = serverSocket.recvfrom(1024)           # Receive name of output file
     number_receives, clientAddress = serverSocket.recvfrom(1024)      # Receive number of receives from client
     outputName = str(outputName, 'utf8')
-    output = open(outputName, 'wb')
+    output = open('output_'+outputName, 'wb')
     number_receives = str(number_receives, 'utf8')
     print('Output File Name: '+ outputName)
     print('Number of Receives: ' + number_receives)                   # Prints to confirm the number was successfully received
