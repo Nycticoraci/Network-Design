@@ -3,17 +3,14 @@ checkSum = 0x1A52
 data = 0x0F0F0F0F
 
 binSeq = int(seqNum, base=16)
-binSeq = format(binSeq, '#04b')
-binSeq = '{:<052}'.format(binSeq)
+binSeq = format(binSeq, '#04b')[2:]
 print("Sequence Number: " + binSeq)
 
-binCheck = format(checkSum, '#018b')
-binCheck = '{:<050}'.format(binCheck)
-print("CheckSum:          " + binCheck)
+binCheck = format(checkSum, '#018b')[2:]
+print("CheckSum:         ", binCheck)
 
-binData = format(data, '#034b')
+binData = format(data, '#034b')[2:]
 print("Data:                              " + binData)
 
-#datagram = int((binSeq),base=16) + int((binCheck),base=16) + int((binData),base=16)
-#datagram = format(datagram, '#052b')
-#print("Datagram: ", datagram)
+datagram = binSeq + binCheck + binData
+print("Datagram:       ", datagram)
