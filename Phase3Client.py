@@ -20,7 +20,15 @@ file_name = simpledialog.askstring(title = 'Client Input',
                                   prompt = 'Hello friend! What is the path for your file?')
 scenario = simpledialog.askstring(title = 'Client Input',
                                   prompt = 'What scenario would you like? (0: Normal Process, 1: ACK Corruption, 2: Data Corruption')
-
+scenario = int(scenario)
+if scenario == 0:
+    err_ceil = 1
+    print(err_ceil)
+elif scenario == 2:
+    err_ceil = 5
+    print (err_ceil)
+elif scenario == 1:
+    client_socket.sendto(scenario, (HOST, PORT))
 
 # "Packet" is the number of the packet being sent, and "data" is the image
 def make_packet(packet, data):
@@ -100,7 +108,7 @@ for packet_data in image_data:
     success = False
     while success is False:
         print(packet_data)
-        packet_corrupt = make_corrupt(packet_data, 1)
+        packet_corrupt = make_corrupt(packet_data, err_ceil)
         client_socket.sendto(packet_corrupt, (HOST, PORT))
         client_socket.settimeout(1)
         try:
