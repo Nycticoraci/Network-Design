@@ -28,14 +28,13 @@ def Make_Packet(packet, data):
     return packet_list
 
 outputName = fileName
-print(fileName)
-linux = subprocess.run(['uname'], shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-print(linux.returncode)
+linux = subprocess.run(['uname'], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#print(linux.returncode)
 if linux.returncode == 0:
-    i = outputName.rfind('/')
-else:
-    i = outputName.rfind('\\')                          #Get the last path index
-print(i)                                                    #Check the index of the last path (file name)
+    i = outputName.rfind('/')                               #If uname completes successfully (return code 0), linux env is true
+else:                                                       #else run path for windows
+    i = outputName.rfind('\\')                              #Get the last path index
+#print(i)                                                   #Check the index of the last path (file name)
 print('File name is: '+ outputName[i+1:])                   #Verify user input is correct
 print('File path is: '+ fileName)
 outputName = outputName[i+1:].encode('utf8')                #Encode file name
