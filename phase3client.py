@@ -1,5 +1,4 @@
 import os
-import time
 import math
 import array
 import random
@@ -41,11 +40,26 @@ def make_packet(packet, data):
 
         # This encodes the sequence and checksum; the payload is already encoded. This makes the full packet
         packet_list.append(str(sequence).encode() + str(checksum).encode() + payload)
-        print(packet_list[int(sequence)])
         payload = user_file.read(1024)
 
     # Returns a list where each index is a new packet
     return packet_list
+
+
+def make_corrupt(data_packet, err_ceil):
+    err_rate = random.randint(1, 101)
+    if err_rate < err_ceil:
+        l_err_first  = data_packet[0:10]
+        l_err_second = data_packet[10:]
+        data_packet = l_err_second + l_err_first
+    return data_packet
+
+
+def is_ack(packet):
+    if packet == b'1':
+        return True
+    else:
+        return False
 
 
 file_size = os.stat(file_name).st_size
@@ -54,14 +68,26 @@ print('Number of receives is ' + number_of_receives)
 number_receives = number_of_receives.encode('utf8')
 client_socket.sendto(number_receives, (HOST, PORT))
 
-rdt_send = make_packet(int(number_of_receives), file_name)
+image_data = make_packet(int(number_of_receives), file_name)
 
-for packet_to_send in rdt_send:
-    is_ACK = False
-    while is_ACK is False:
-        client_socket.sendto(packet_to_send, (HOST, PORT))
-        is_ACK, client_address = client_socket.recvfrom(2048)
+for packet_data in image_data:
+    success = False
+    while success is False:
+        print(packet_data)
+        packet_corrupt = make_corrupt(packet_data, 1)
+        client_socket.sendto(packet_corrupt, (HOST, PORT))
+        client_socket.settimeout(1)
+        try:
+            packet, addr = client_socket.recvfrom(1024)
+        except:
+            continue
 
-    time.sleep(0.02)
+        if is_ack(packet) is True:
+            success = True
+            print('Success!')
+        else:
+            print('Resending...')
+            print(packet_data)
+
 
 client_socket.close()
