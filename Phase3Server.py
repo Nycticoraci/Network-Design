@@ -7,7 +7,8 @@ HOST = 'localhost'
 PORT = 12000
 server_socket = socket(AF_INET, SOCK_DGRAM)
 server_socket.bind((HOST, PORT))
-
+##scenario, addr = server_socket.recvfrom(1024)
+##print(scenario)
 
 def rebuild_checksum(data):
     if len(data) % 2 != 0:
@@ -70,7 +71,7 @@ while True:
                 checksum_check = True
 
             if sequence_check is True and checksum_check is True:
-                ack_corrupt = make_corrupt(5)
+                ack_corrupt = make_corrupt(1)
                 server_socket.sendto(ack_corrupt, addr)
             else:
                 print('Retrying...')
