@@ -17,7 +17,7 @@ scenario = input('Enter data transfer scenario: (0: Normal Operation, 1: ACK Err
 def make_packet(packet, data):
     packet_list = []
     user_file = open(data, 'rb')
-                #not were this needs to be implemented, just writing thoughts to work on later
+                  #not were this needs to be implemented, just writing thoughts to work on later
                  if scenario == 2 : # Data Corruption Scenario
                     percent = randint (0,100)
                       if percent < 25 :
