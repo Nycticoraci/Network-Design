@@ -1,14 +1,20 @@
 import array
 import random
-import sys
 from socket import *
 
 HOST = 'localhost'
 PORT = 12000
 server_socket = socket(AF_INET, SOCK_DGRAM)
 server_socket.bind((HOST, PORT))
-##scenario, addr = server_socket.recvfrom(1024)
-##print(scenario)
+#scenario, addr = server_socket.recvfrom(1024)
+#scenario = int(scenario)
+#print(scenario)
+#if scenario == 2:
+#    x = 5
+#    print('if 5')
+#else:
+#    x = 1
+#    print('else 1')
 
 def rebuild_checksum(data):
     if len(data) % 2 != 0:
@@ -29,12 +35,16 @@ def make_corrupt(err_rate):
     ack = b'1'
     err_ceil = random.randint(1, 101)
     if err_ceil < err_rate:
-        ack = b'0'
+        ack = b'1'
     return ack
 
 
 while True:
+
     print('Waiting...')
+#    scenario, addr = server_socket.recvfrom(1024)
+#    scenario = int(scenario)
+#    print(scenario)
     number_of_receives, addr = server_socket.recvfrom(2048)
     new_file = open('output.jpg', 'wb')
     number_of_receives = str(number_of_receives, 'utf8')
@@ -65,13 +75,13 @@ while True:
                 sequence_check = True
 
             if checksum != rebuild_checksum(payload):
-                checksum_check = False
+                checksum_checkw = False
                 print('Checksum failed!')
             else:
                 checksum_check = True
 
             if sequence_check is True and checksum_check is True:
-                ack_corrupt = make_corrupt(1)
+                ack_corrupt = make_corrupt(0)
                 server_socket.sendto(ack_corrupt, addr)
             else:
                 print('Retrying...')
