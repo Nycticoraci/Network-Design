@@ -35,7 +35,7 @@ def make_corrupt(err_rate):
     ack = b'1'
     err_ceil = random.randint(1, 101)
     if err_ceil < err_rate:
-        ack = b'1'
+        ack = b'0'
     return ack
 
 
