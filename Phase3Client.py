@@ -9,17 +9,23 @@ PORT = 12000
 client_socket = socket(AF_INET, SOCK_DGRAM)
 
 file_name = input('Enter filename: ')
-scenario = input('What scenario would you like? (0: Normal Process, 1: Data Corruption, 2: ACK Corruption )') 
+scenario = input('What scenario would you like? (0: Normal Process, 1: Data Corruption, 2: ACK Corruption)-') 
 scenario = int(scenario)
 
 if scenario == 0:
     rate = 1
     print(rate)
 elif scenario == 1:
-    rate = 50
+    rate = input('What percentage error/loss would you like? ')
+    rate = int(rate)
+    #rate = 50
     print (rate)
 elif scenario == 2:
-    client_socket.sendto(str(scenario).encode('utf8'), (HOST, PORT))
+    ack_err = input('What percentage ack error would you like? ')
+    rate=0
+    print ('ack_err = ' + str(ack_err))
+    ack_err = str(ack_err).encode('utf8')
+    
 
 
 # "Packet" is the number of the packet being sent, and "data" is the image
@@ -78,13 +84,14 @@ number_of_receives = str(math.ceil(file_size / 1024))
 print('Number of receives is ' + number_of_receives)
 number_receives = number_of_receives.encode('utf8')
 client_socket.sendto(number_receives, (HOST, PORT))
+client_socket.sendto(str(ack_err).encode('utf8'), (HOST, PORT))
 
 image_data = make_packet(int(number_of_receives), file_name)
 
 for packet_data in image_data:
     success = False
     while success is False:
-        print(packet_data)
+        #print(packet_data)
         packet_corrupt = make_corrupt(packet_data, rate)
         client_socket.sendto(packet_corrupt, (HOST, PORT))
         client_socket.settimeout(.1)
@@ -98,7 +105,7 @@ for packet_data in image_data:
             print('Success!')
         else:
             print('Resending...')
-            print(packet_data)
+            #print(packet_data)
 
 
 client_socket.close()
