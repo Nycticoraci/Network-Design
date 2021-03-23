@@ -1,34 +1,26 @@
-from socket import *
 import os
 import math
 import array
 import random
-import time
-import subprocess
-import tkinter as tk
-from tkinter import simpledialog
-
+from socket import *
 
 HOST = 'localhost'
 PORT = 12000
 client_socket = socket(AF_INET, SOCK_DGRAM)
 
-# Creates simple popup GUI
-root = tk.Tk()
-root.withdraw()
-file_name = simpledialog.askstring(title = 'Client Input',
-                                  prompt = 'Hello friend! What is the path for your file?')
-scenario = simpledialog.askstring(title = 'Client Input',
-                                  prompt = 'What scenario would you like? (0: Normal Process, 1: ACK Corruption, 2: Data Corruption')
+file_name = input('Enter filename: ')
+scenario = input('What scenario would you like? (0: Normal Process, 1: Data Corruption, 2: ACK Corruption )') 
 scenario = int(scenario)
+
 if scenario == 0:
-    err_ceil = 1
-    print(err_ceil)
-elif scenario == 2:
-    err_ceil = 5
-    print (err_ceil)
+    rate = 1
+    print(rate)
 elif scenario == 1:
-    client_socket.sendto(scenario, (HOST, PORT))
+    rate = 50
+    print (rate)
+elif scenario == 2:
+    client_socket.sendto(str(scenario).encode('utf8'), (HOST, PORT))
+
 
 # "Packet" is the number of the packet being sent, and "data" is the image
 def make_packet(packet, data):
@@ -65,8 +57,6 @@ def make_packet(packet, data):
     return packet_list
 
 
-
-
 def make_corrupt(data_packet, err_ceil):
     err_rate = random.randint(1, 101)
     if err_rate < err_ceil:
@@ -82,19 +72,6 @@ def is_ack(packet):
     else:
         return False
 
-outputName = file_name
-linux = subprocess.run(['uname'], shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-#print(linux.returncode)
-if linux.returncode == 0:
-    i = outputName.rfind('/')                               #If uname completes successfully (return code 0), linux env is true
-else:                                                       #else run path for windows
-    i = outputName.rfind('\\')                              #Get the last path index
-#print(i)                                                   #Check the index of the last path (file name)
-print('File name is: '+ outputName[i+1:])                   #Verify user input is correct
-print('File path is: '+ file_name)
-outputName = outputName[i+1:].encode('utf8')                #Encode file name
-client_socket.sendto(outputName,(HOST, PORT))                #Send file name to server
-time.sleep(0.02)                                            # Pause the process so that the server does not mix up the packets for file name and fize size
 
 file_size = os.stat(file_name).st_size
 number_of_receives = str(math.ceil(file_size / 1024))
@@ -108,9 +85,9 @@ for packet_data in image_data:
     success = False
     while success is False:
         print(packet_data)
-        packet_corrupt = make_corrupt(packet_data, err_ceil)
+        packet_corrupt = make_corrupt(packet_data, rate)
         client_socket.sendto(packet_corrupt, (HOST, PORT))
-        client_socket.settimeout(1)
+        client_socket.settimeout(.1)
         try:
             packet, addr = client_socket.recvfrom(1024)
         except:
