@@ -42,13 +42,16 @@ def make_corrupt(err_rate):
 while True:
 
     print('Waiting...')
-#    scenario, addr = server_socket.recvfrom(1024)
-#    scenario = int(scenario)
-#    print(scenario)
     number_of_receives, addr = server_socket.recvfrom(2048)
     new_file = open('output.jpg', 'wb')
     number_of_receives = str(number_of_receives, 'utf8')
     print('Number of receives: ' + number_of_receives)
+    ack_err, addr = server_socket.recvfrom(2048)
+    #ack_err = str(ack_err, 'utf8')
+   # print('initial' + ack_err)
+   # ack_err = str(ack_err)
+    print('ack_err' + ack_err)
+
 
     for receive in range(int(number_of_receives)):
         sequence_check = False
