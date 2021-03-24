@@ -2,19 +2,19 @@ import os
 import math
 import array
 import random
+import tkinter as tk
+from tkinter import simpledialog
 from socket import *
 
 HOST = 'localhost'
 PORT = 12000
 client_socket = socket(AF_INET, SOCK_DGRAM)
 
-file_name = input('Enter filename: ')
-scen = input('What scenario would you like? (1: Normal Process, 2: Data Corruption, 3: ACK Corruption)- ')
-scen =(scen).encode()
-client_socket.sendto(scen, (HOST, PORT))
-print('Sent')
-
-
+# Creates simple popup GUI
+root = tk.Tk()
+root.withdraw()
+file_name = simpledialog.askstring(title = 'Client Input',
+                                  prompt = 'Hello friend! What is the path for your file?')
 
 def read_file(data, size):
     packet_list = []
