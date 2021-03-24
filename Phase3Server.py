@@ -1,29 +1,40 @@
 import array
 import random
+import tkinter as tk
+from tkinter import simpledialog
 from socket import *
 
 HOST = 'localhost'
 PORT = 12000
 server_socket = socket(AF_INET, SOCK_DGRAM)
 server_socket.bind((HOST, PORT))
-    
+
+
+
 def scn_rcv():
-    scen, addr = server_socket.recvfrom(1)
-    scen = (scen).decode()
-    scen = int(scen)
+    root = tk.Tk()
+    root.withdraw()
+    scenario = simpledialog.askstring(title = 'Server Input',
+                                  prompt = 'What scenario would you like? (1: Normal Process, 2: ACK Corruption, 3: Data Corruption')
+    scen = int(scenario)
+    
     if scen == 1:
         print ('def1')
         rate = 0
         ack_err = 0
         return scen
     elif scen == 2:
-        rate = input('What percentage error/loss would you like? ')
+        rate = simpledialog.askstring(title = 'Server Input',
+                                  prompt = 'What percentage error/loss would you like? ')
+       # rate = input('What percentage error/loss would you like? ')
         rate = int(rate)
         ack_err = 0
         print ('def2')
         return scen
     elif scen == 3:
-        ack_err = input('What percentage ack error would you like? ')
+        ack_err = simpledialog.askstring(title = 'Server Input',
+                                  prompt = 'What percentage ack error would you like? ')
+        #ack_err = input('What percentage ack error would you like? ')
         ack_err = int(ack_err)
         rate = 0
         print ('def3')
@@ -70,9 +81,6 @@ def has_seq0(rcvpkt):
         print('Seq0 = false')
         return False
 
-
-# Extracts the data from the packet and returns it
-### DATA CORRUPTION: Take rcvpkt[1:][:1024], assign it to a variable, and jumble it
 def extract(rcvpkt):
     return rcvpkt[1:][:1024]
 
@@ -94,7 +102,6 @@ def checksum(rcvpkt):
 
 
 # Makes the packet consisting of the ACK (0 or 1), level (0 or 1), and checksum
-### ACK CORRUPTION: Take ACK and scramble it
 def make_pkt(ACK, seq, checksum):
     return ACK + b'0' + checksum
 
@@ -131,17 +138,33 @@ def has_seq1(rcvpkt):
     else:
         print('Seq1 = false')
         return False
+    
+# Extracts the data from the packet and returns it
+### DATA CORRUPTION: Take rcvpkt[1:][:1024], assign it to a variable, and jumble it
+#### When calling function, put 'rate' instead of number for err_ceil
+def make_corrupt(data, err_ceil):
+    err_rate = random.randint(1, 101)
+    if err_rate < err_ceil:
+        l_err_first  = data_packet[0:10]
+        l_err_second = data_packet[10:]
+        data_packet = l_err_second + l_err_first
+    return data
 
-
-while 1==1:
-    scn_rcv()
-    break
+### ACK CORRUPTION: Take ACK and scramble it
+#### When calling function, put 'ack_err' in parentheses instead of a number for err_rate
+def make_corrupt(err_rate):
+    ack = b'1'
+    err_ceil = random.randint(1, 101)
+    if err_ceil < err_rate:
+        ack = b'0'
+    return ack
 
 print('Waiting...')
 
 new_file = open('output.jpg', 'wb')
 
-
+# Calls Scenario If statement
+scn_rcv()
 
 
 # This gets the loop started and allows it to continue internally
