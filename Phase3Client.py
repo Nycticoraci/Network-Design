@@ -9,103 +9,103 @@ PORT = 12000
 client_socket = socket(AF_INET, SOCK_DGRAM)
 
 file_name = input('Enter filename: ')
-scenario = input('What scenario would you like? (0: Normal Process, 1: Data Corruption, 2: ACK Corruption)-') 
-scenario = int(scenario)
-
-if scenario == 0:
-    rate = 1
-    print(rate)
-elif scenario == 1:
-    rate = input('What percentage error/loss would you like? ')
-    rate = int(rate)
-    #rate = 50
-    print (rate)
-elif scenario == 2:
-    ack_err = input('What percentage ack error would you like? ')
-    rate=0
-    print ('ack_err = ' + str(ack_err))
-    ack_err = str(ack_err).encode('utf8')
-    
+scen = input('What scenario would you like? (1: Normal Process, 2: Data Corruption, 3: ACK Corruption)- ')
+scen =(scen).encode()
+client_socket.sendto(scen, (HOST, PORT))
+print('Sent')
 
 
-# "Packet" is the number of the packet being sent, and "data" is the image
-def make_packet(packet, data):
+
+def read_file(data, size):
     packet_list = []
     user_file = open(data, 'rb')
     payload = user_file.read(1024)
-
-    # The sequence number comes from the total number of packets sent
-    for sequence in range(packet):
-
-        # This prepends 0s to the sequence number so it's the same number of digits each time
-        while len(str(packet)) != len(str(sequence)):
-            sequence = '0' + str(sequence)
-
-        # If the length of the payload is uneven, add a 0
-        if len(payload) % 2 != 0:
-            payload += b'\0'
-
-        # These operations create the checksum number
-        byte = sum(array.array('H', payload))
-        byte = (byte >> 16) + (byte & 0xffff)
-        byte += byte >> 16
-        checksum = (~byte) & 0xffff
-
-        # Checksum is a maximum of 5 digits long; this prepends digits to checksums < 5
-        while len(str(checksum)) != 5:
-            checksum = '0' + str(checksum)
-
-        # This encodes the sequence and checksum; the payload is already encoded. This makes the full packet
-        packet_list.append(str(sequence).encode() + str(checksum).encode() + payload)
+    for i in range(size):
+        packet_list.append(payload)
         payload = user_file.read(1024)
-
-    # Returns a list where each index is a new packet
     return packet_list
 
 
-def make_corrupt(data_packet, err_ceil):
-    err_rate = random.randint(1, 101)
-    if err_rate < err_ceil:
-        l_err_first  = data_packet[0:10]
-        l_err_second = data_packet[10:]
-        data_packet = l_err_second + l_err_first
-    return data_packet
+def make_pkt(seq, data, checksum):
+    return seq + data + checksum
 
 
-def is_ack(packet):
-    if packet == b'1':
+def make_checksum(data):
+    if len(data) % 2 != 0:
+        data += b'\0'
+    byte = sum(array.array('H', data))
+    byte = (byte >> 16) + (byte & 0xffff)
+    byte += byte >> 16
+    checksum = (~byte) & 0xffff
+    checksum = str(checksum).encode()
+    return checksum
+
+
+def rdt_rcv(rcvpkt):
+    if rcvpkt:
+        print('Received = true')
         return True
     else:
+        print('Received = false')
         return False
 
 
+def corrupt(rcvpkt, checksum):
+    checksum_recalc = rcvpkt[2:]
+    if checksum == checksum_recalc:
+        print('Corrupt = false')
+        return False
+    else:
+        print('Corrupt = true')
+        return True
+
+
+def udt_send(sndpkt, HOST = 'localhost', PORT = 12000):
+    client_socket.sendto(sndpkt, (HOST, PORT))
+    return
+
+
+def isACK(rcvpkt, check):
+    ACK = rcvpkt[:1]
+    if ACK == check:
+        print('ACK Check = true')
+        return True
+    else:
+        print('ACK Check = false')
+        return False
+
+
+
 file_size = os.stat(file_name).st_size
-number_of_receives = str(math.ceil(file_size / 1024))
-print('Number of receives is ' + number_of_receives)
-number_receives = number_of_receives.encode('utf8')
-client_socket.sendto(number_receives, (HOST, PORT))
-client_socket.sendto(str(ack_err).encode('utf8'), (HOST, PORT))
+number_of_receives = math.ceil(file_size / 1024)
+print('Number of receives is ' + str(number_of_receives))
+call = 0
 
-image_data = make_packet(int(number_of_receives), file_name)
+rdt_send = read_file(file_name, number_of_receives)
 
-for packet_data in image_data:
-    success = False
-    while success is False:
-        #print(packet_data)
-        packet_corrupt = make_corrupt(packet_data, rate)
-        client_socket.sendto(packet_corrupt, (HOST, PORT))
-        client_socket.settimeout(.1)
-        try:
-            packet, addr = client_socket.recvfrom(1024)
-        except:
-            continue
+for data in rdt_send:
+    if call == 0:
+        checksum = make_checksum(data)
+        sndpkt = make_pkt(b'0', data, checksum)
+        udt_send(sndpkt)
 
-        if is_ack(packet) is True:
-            success = True
-            print('Success!')
-        else:
-            print('Resending...')
-            #print(packet_data)
+        rcvpkt, addr = client_socket.recvfrom(1024)
+        while rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt, checksum) is True or isACK(rcvpkt, b'1') is True):
+            udt_send(sndpkt)
+            rcvpkt, addr = client_socket.recvfrom(1024)
 
+        call = 1
 
-client_socket.close()
+    elif call == 1:
+        checksum = make_checksum(data)
+        sndpkt = make_pkt(b'1', data, checksum)
+        udt_send(sndpkt)
+
+        rcvpkt, addr = client_socket.recvfrom(1024)
+        while rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt, checksum) is True or isACK(rcvpkt, b'0') is True):
+            udt_send(sndpkt)
+            rcvpkt, addr = client_socket.recvfrom(1024)
+
+        call = 0
+
+print('end\n')
