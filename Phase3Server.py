@@ -9,20 +9,18 @@ PORT = 12000
 server_socket = socket(AF_INET, SOCK_DGRAM)
 server_socket.bind((HOST, PORT))
 
-
-
 def scn_rcv():
     root = tk.Tk()
     root.withdraw()
     scenario = simpledialog.askstring(title = 'Server Input',
-                                  prompt = 'What scenario would you like? (1: Normal Process, 2: ACK Corruption, 3: Data Corruption')
+                                  prompt = 'What scenario would you like? (1: Normal Process, 2: Data Corruption, 3: ACK Corruption')
     scen = int(scenario)
     
     if scen == 1:
         print ('def1')
         rate = 0
         ack_err = 0
-        return scen
+        return scen, rate, ack_err
     elif scen == 2:
         rate = simpledialog.askstring(title = 'Server Input',
                                   prompt = 'What percentage error/loss would you like? ')
@@ -30,7 +28,7 @@ def scn_rcv():
         rate = int(rate)
         ack_err = 0
         print ('def2')
-        return scen
+        return scen, rate, ack_err
     elif scen == 3:
         ack_err = simpledialog.askstring(title = 'Server Input',
                                   prompt = 'What percentage ack error would you like? ')
@@ -38,10 +36,11 @@ def scn_rcv():
         ack_err = int(ack_err)
         rate = 0
         print ('def3')
-        return scen
+        return scen, rate, ack_err
     else:
         print ('no scenario')
         return
+
 
 # Determines if a packet has been successfully received
 def rdt_rcv(rcvpkt):
@@ -81,12 +80,14 @@ def has_seq0(rcvpkt):
         print('Seq0 = false')
         return False
 
+
+# Extracts the data from the packet and returns it
 def extract(rcvpkt):
     return rcvpkt[1:][:1024]
 
 
 # Writes the extracted data to the file
-def deliver_data(rcvpkt):
+def deliver_data(data):
     new_file.write(data)
     return
 
@@ -138,71 +139,71 @@ def has_seq1(rcvpkt):
     else:
         print('Seq1 = false')
         return False
-    
-# Extracts the data from the packet and returns it
-### DATA CORRUPTION: Take rcvpkt[1:][:1024], assign it to a variable, and jumble it
-#### When calling function, put 'rate' instead of number for err_ceil
-def make_corrupt(data, err_ceil):
-    err_rate = random.randint(1, 101)
-    if err_rate < err_ceil:
-        l_err_first  = data[0:10]
-        l_err_second = data[10:]
-        data = l_err_second + l_err_first
+
+
+def DATA_corrupt(data, err_rate):
+    err_chance = random.randint(1, 101)
+    if err_chance < err_rate:
+        print('[DATA CORRUPTED]')
+        l_shift_data = data[0:10]
+        r_shift_data = data[10:]
+        shifted_data = r_shift_data + l_shift_data
+        data = shifted_data
     return data
 
-### ACK CORRUPTION: Take ACK and scramble it
-#### When calling function, put 'ack_err' in parentheses instead of a number for err_rate
-def make_corrupt(err_rate):
-    ack = b'1'
-    err_ceil = random.randint(1, 101)
-    if err_ceil < err_rate:
-        ack = b'0'
+
+def ACK_corrupt(ack, err_rate):
+    err_chance = random.randint(1, 101)
+    if err_chance < err_rate:
+        print('[ACK CORRUPTED]')
+        ack = b'2'
     return ack
+
 
 print('Waiting...')
 
 new_file = open('output.jpg', 'wb')
 
 # Calls Scenario If statement
-scn_rcv()
-
+scenChoice, dataError, ackError = scn_rcv() # JF - The function outputs 3 variables to make it clearer
+print(scenChoice, dataError, ackError)
 
 # This gets the loop started and allows it to continue internally
-rcvpkt, addr = server_socket.recvfrom(2048)
 oncethru = 0
 
-
 while True:
-    # "Try" is my attempt at closing out the server once it finished the image
-    try:
+    while True:
+        rcvpkt, addr = server_socket.recvfrom(2048)
+        rcvpkt = DATA_corrupt(rcvpkt, dataError)
+
         # @: Wait for 0 from below. If these trigger, GOTO "Wait for 1 from below."
         if rdt_rcv(rcvpkt) is True and notcorrupt(rcvpkt) is True and has_seq0(rcvpkt) is True:
-                data = extract(rcvpkt)
-                deliver_data(data)
-                sndpkt = make_pkt(b'0', b'0', checksum(data))
-                udt_send(sndpkt, addr)
-                oncethru = 1
-
-        # @: Wait for 1 from below. If these are all true, STAY @ "Wait for 1 from below."
-        rcvpkt, addr = server_socket.recvfrom(2048)
-        while rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt) is True or has_seq0(rcvpkt) is True):
+            data = extract(rcvpkt)
+            deliver_data(data)
+            ACK = ACK_corrupt(b'0', ackError)
+            sndpkt = make_pkt(ACK, b'0', checksum(data))
             udt_send(sndpkt, addr)
-            rcvpkt, addr = server_socket.recvfrom(2048)
+            oncethru = 1
+            break
+
+        # @: Wait for 0 from below. If these are all true, STAY @ "Wait for 0 from below."
+        if rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt) is True or has_seq1(rcvpkt) is True):
+            if oncethru == 1:
+                udt_send(sndpkt, addr)
+
+    while True:
+        rcvpkt, addr = server_socket.recvfrom(2048)
+        rcvpkt = DATA_corrupt(rcvpkt, dataError)
 
         # @: Wait for 1 from below. If these are all true, GOTO "Wait for 0 from below."
         if rdt_rcv(rcvpkt) is True and notcorrupt(rcvpkt) is True and has_seq1(rcvpkt) is True:
             data = extract(rcvpkt)
             deliver_data(data)
-            sndpkt = make_pkt(b'1', b'1', checksum(data))
+            ACK = ACK_corrupt(b'1', ackError)
+            sndpkt = make_pkt(ACK, b'1', checksum(data))
             udt_send(sndpkt, addr)
+            break
 
-        # @: Wait for 0 from below. If these are all true, STY+AY @ "Wait for 0 from below."
-        rcvpkt, addr = server_socket.recvfrom(2048)
-        while rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt) is True or has_seq1(rcvpkt) is True):
-            if oncethru == 1:
-                udt_send(sndpkt, addr)
-            rcvpkt, addr = server_socket.recvfrom(2048)
-    except ValueError:
-        break
-
-print('Done!')
+        # @: Wait for 1 from below. If these are all true, STAY @ "Wait for 1 from below."
+        if rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt) is True or has_seq0(rcvpkt) is True):
+            udt_send(sndpkt, addr)
