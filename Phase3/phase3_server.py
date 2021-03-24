@@ -48,13 +48,12 @@ def has_seq0(rcvpkt):
 
 
 # Extracts the data from the packet and returns it
-### DATA CORRUPTION: Take rcvpkt[1:][:1024], assign it to a variable, and jumble it
 def extract(rcvpkt):
     return rcvpkt[1:][:1024]
 
 
 # Writes the extracted data to the file
-def deliver_data(rcvpkt):
+def deliver_data(data):
     new_file.write(data)
     return
 
@@ -70,7 +69,6 @@ def checksum(rcvpkt):
 
 
 # Makes the packet consisting of the ACK (0 or 1), level (0 or 1), and checksum
-### ACK CORRUPTION: Take ACK and scramble it
 def make_pkt(ACK, seq, checksum):
     return ACK + b'0' + checksum
 
@@ -109,45 +107,65 @@ def has_seq1(rcvpkt):
         return False
 
 
+def DATA_corrupt(data, err_rate):
+    err_chance = random.randint(1, 101)
+    if err_chance < err_rate:
+        print('[DATA CORRUPTED]')
+        l_shift_data = data[0:10]
+        r_shift_data = data[10:]
+        shifted_data = r_shift_data + l_shift_data
+        data = shifted_data
+    return data
+
+
+def ACK_corrupt(ack, err_rate):
+    err_chance = random.randint(1, 101)
+    if err_chance < err_rate:
+        print('[ACK CORRUPTED]')
+        ack = b'2'
+    return ack
+
+
 print('Waiting...')
 
 new_file = open('output.jpg', 'wb')
 
 # This gets the loop started and allows it to continue internally
-rcvpkt, addr = server_socket.recvfrom(2048)
 oncethru = 0
 
 while True:
-    # "Try" is my attempt at closing out the server once it finished the image
-    try:
+    while True:
+        rcvpkt, addr = server_socket.recvfrom(2048)
+        rcvpkt = DATA_corrupt(rcvpkt, 50)
+
         # @: Wait for 0 from below. If these trigger, GOTO "Wait for 1 from below."
         if rdt_rcv(rcvpkt) is True and notcorrupt(rcvpkt) is True and has_seq0(rcvpkt) is True:
-                data = extract(rcvpkt)
-                deliver_data(data)
-                sndpkt = make_pkt(b'0', b'0', checksum(data))
-                udt_send(sndpkt, addr)
-                oncethru = 1
-
-        # @: Wait for 1 from below. If these are all true, STAY @ "Wait for 1 from below."
-        rcvpkt, addr = server_socket.recvfrom(2048)
-        while rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt) is True or has_seq0(rcvpkt) is True):
+            data = extract(rcvpkt)
+            deliver_data(data)
+            ACK = ACK_corrupt(b'0', 50)
+            sndpkt = make_pkt(ACK, b'0', checksum(data))
             udt_send(sndpkt, addr)
-            rcvpkt, addr = server_socket.recvfrom(2048)
+            oncethru = 1
+            break
+
+        # @: Wait for 0 from below. If these are all true, STAY @ "Wait for 0 from below."
+        if rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt) is True or has_seq1(rcvpkt) is True):
+            if oncethru == 1:
+                udt_send(sndpkt, addr)
+
+    while True:
+        rcvpkt, addr = server_socket.recvfrom(2048)
+        rcvpkt = DATA_corrupt(rcvpkt, 50)
 
         # @: Wait for 1 from below. If these are all true, GOTO "Wait for 0 from below."
         if rdt_rcv(rcvpkt) is True and notcorrupt(rcvpkt) is True and has_seq1(rcvpkt) is True:
             data = extract(rcvpkt)
             deliver_data(data)
-            sndpkt = make_pkt(b'1', b'1', checksum(data))
+            ACK = ACK_corrupt(b'1', 50)
+            sndpkt = make_pkt(ACK, b'1', checksum(data))
             udt_send(sndpkt, addr)
+            break
 
-        # @: Wait for 0 from below. If these are all true, STY+AY @ "Wait for 0 from below."
-        rcvpkt, addr = server_socket.recvfrom(2048)
-        while rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt) is True or has_seq1(rcvpkt) is True):
-            if oncethru == 1:
-                udt_send(sndpkt, addr)
-            rcvpkt, addr = server_socket.recvfrom(2048)
-    except ValueError:
-        break
-
-print('Done!')
+        # @: Wait for 1 from below. If these are all true, STAY @ "Wait for 1 from below."
+        if rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt) is True or has_seq0(rcvpkt) is True):
+            udt_send(sndpkt, addr)
