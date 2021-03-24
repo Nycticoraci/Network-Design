@@ -145,9 +145,9 @@ def has_seq1(rcvpkt):
 def make_corrupt(data, err_ceil):
     err_rate = random.randint(1, 101)
     if err_rate < err_ceil:
-        l_err_first  = data_packet[0:10]
-        l_err_second = data_packet[10:]
-        data_packet = l_err_second + l_err_first
+        l_err_first  = data[0:10]
+        l_err_second = data[10:]
+        data = l_err_second + l_err_first
     return data
 
 ### ACK CORRUPTION: Take ACK and scramble it
