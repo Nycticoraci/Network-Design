@@ -11,10 +11,8 @@ server_socket.bind((HOST, PORT))
 # Determines if a packet has been successfully received
 def rdt_rcv(rcvpkt):
     if rcvpkt:
-        print('Received = true')
         return True
     else:
-        print('Received = false')
         return False
 
 
@@ -22,17 +20,18 @@ def rdt_rcv(rcvpkt):
 def notcorrupt(rcvpkt):
     data = rcvpkt[1:][:1024]
     checksum = rcvpkt[1025:]
-    byte = sum(array.array('H', data))
+    try:
+        byte = sum(array.array('H', data))
+    except ValueError:
+        exit()
     byte = (byte >> 16) + (byte & 0xffff)
     byte += byte >> 16
     checksum_recalc = (~byte) & 0xffff
     checksum_recalc = str(checksum_recalc).encode()
 
     if checksum == checksum_recalc:
-        print('Not corrupt = true')
         return True
     else:
-        print('Not corrupt = false')
         return False
 
 
@@ -40,10 +39,8 @@ def notcorrupt(rcvpkt):
 def has_seq0(rcvpkt):
     seq = rcvpkt[:1]
     if seq == b'0':
-        print('Seq0 = true')
         return True
     else:
-        print('Seq0 = false')
         return False
 
 
@@ -89,10 +86,8 @@ def corrupt(data):
     checksum_recalc = str(checksum_recalc).encode()
 
     if checksum == checksum_recalc:
-        print('Corrupt = false')
         return False
     else:
-        print('Corrupt = true')
         return True
 
 
@@ -100,17 +95,14 @@ def corrupt(data):
 def has_seq1(rcvpkt):
     seq = rcvpkt[:1]
     if seq == b'1':
-        print('Seq1 = true')
         return True
     else:
-        print('Seq1 = false')
         return False
 
 
 def DATA_corrupt(data, err_rate):
     err_chance = random.randint(1, 101)
     if err_chance < err_rate:
-        print('[DATA CORRUPTED]')
         l_shift_data = data[0:10]
         r_shift_data = data[10:]
         shifted_data = r_shift_data + l_shift_data
@@ -121,12 +113,23 @@ def DATA_corrupt(data, err_rate):
 def ACK_corrupt(ack, err_rate):
     err_chance = random.randint(1, 101)
     if err_chance < err_rate:
-        print('[ACK CORRUPTED]')
         ack = b'2'
     return ack
 
 
 print('Waiting...')
+
+# Selects the option
+option, addr = server_socket.recvfrom(2048)
+if option == b'1':
+    DATA_err = 0
+    ACK_err  = 0
+elif option == b'2':
+    DATA_err = 20
+    ACK_err  = 0
+elif option == b'3':
+    DATA_err = 0
+    ACK_err  = 20
 
 new_file = open('output.jpg', 'wb')
 
@@ -136,13 +139,13 @@ oncethru = 0
 while True:
     while True:
         rcvpkt, addr = server_socket.recvfrom(2048)
-        rcvpkt = DATA_corrupt(rcvpkt, 50)
+        rcvpkt = DATA_corrupt(rcvpkt, DATA_err)
 
         # @: Wait for 0 from below. If these trigger, GOTO "Wait for 1 from below."
         if rdt_rcv(rcvpkt) is True and notcorrupt(rcvpkt) is True and has_seq0(rcvpkt) is True:
             data = extract(rcvpkt)
             deliver_data(data)
-            ACK = ACK_corrupt(b'0', 50)
+            ACK = ACK_corrupt(b'0', ACK_err)
             sndpkt = make_pkt(ACK, b'0', checksum(data))
             udt_send(sndpkt, addr)
             oncethru = 1
@@ -155,13 +158,13 @@ while True:
 
     while True:
         rcvpkt, addr = server_socket.recvfrom(2048)
-        rcvpkt = DATA_corrupt(rcvpkt, 50)
+        rcvpkt = DATA_corrupt(rcvpkt, DATA_err)
 
         # @: Wait for 1 from below. If these are all true, GOTO "Wait for 0 from below."
         if rdt_rcv(rcvpkt) is True and notcorrupt(rcvpkt) is True and has_seq1(rcvpkt) is True:
             data = extract(rcvpkt)
             deliver_data(data)
-            ACK = ACK_corrupt(b'1', 50)
+            ACK = ACK_corrupt(b'1', ACK_err)
             sndpkt = make_pkt(ACK, b'1', checksum(data))
             udt_send(sndpkt, addr)
             break

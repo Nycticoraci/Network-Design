@@ -8,9 +8,8 @@ HOST = 'localhost'
 PORT = 12000
 client_socket = socket(AF_INET, SOCK_DGRAM)
 
-file_name = input('Enter filename: ')
 
-
+# Opens the file, reads it in bytes, and puts 1024 bit chunks into a list
 def read_file(data, size):
     packet_list = []
     user_file = open(data, 'rb')
@@ -21,10 +20,12 @@ def read_file(data, size):
     return packet_list
 
 
+# Combines the sequence, data, and checksum combined
 def make_pkt(seq, data, checksum):
     return seq + data + checksum
 
 
+# Computes the checksum from the data
 def make_checksum(data):
     if len(data) % 2 != 0:
         data += b'\0'
@@ -36,70 +37,107 @@ def make_checksum(data):
     return checksum
 
 
+# Returns TRUE if packet is received, else FALSE
 def rdt_rcv(rcvpkt):
     if rcvpkt:
-        print('Received = true')
         return True
     else:
-        print('Received = false')
         return False
 
 
+# Returns TRUE if the server checksum matches the sent one, else FALSE
 def corrupt(rcvpkt, checksum):
     checksum_recalc = rcvpkt[2:]
     if checksum == checksum_recalc:
-        print('Corrupt = false')
         return False
     else:
-        print('Corrupt = true')
         return True
 
 
+# Sends the packet
 def udt_send(sndpkt, HOST = 'localhost', PORT = 12000):
     client_socket.sendto(sndpkt, (HOST, PORT))
     return
 
 
+# Returns TRUE if the ACk macthes the expected value, else FALSE
 def isACK(rcvpkt, check):
     ACK = rcvpkt[:1]
     if ACK == check:
-        print('ACK Check = true')
         return True
     else:
-        print('ACK Check = false')
         return False
 
 
+# File name requested, then divided into 1024 bit chunks + remainder
+file_name = input('Enter filename: ')
+option    = input('Selection option [1/2/3]: ')
+if option == '2':
+    option = b'2'
+elif option == '3':
+    option = b'3'
+else:
+    option = b'1'
 file_size = os.stat(file_name).st_size
 number_of_receives = math.ceil(file_size / 1024)
-print('Number of receives is ' + str(number_of_receives))
+
+# Program starts at "call 0 from above"
 call = 0
 
 rdt_send = read_file(file_name, number_of_receives)
+udt_send(option)
 
+# "Call from above"
 for data in rdt_send:
+    # If this is a call 0
     if call == 0:
+        # Calcuate the checksum, order it sequence 0, and send w/ the data
         checksum = make_checksum(data)
         sndpkt = make_pkt(b'0', data, checksum)
         udt_send(sndpkt)
 
-        rcvpkt, addr = client_socket.recvfrom(1024)
+        # If the packet is received but data or ACK is corrupt, repeat.
+        # When none of them are corrupt, call will change to 1 and move on
+        client_socket.settimeout(0.1)
+        try:
+            rcvpkt, addr = client_socket.recvfrom(1024)
+        except:
+            break
+            
         while rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt, checksum) is True or isACK(rcvpkt, b'1') is True):
             udt_send(sndpkt)
-            rcvpkt, addr = client_socket.recvfrom(1024)
+            client_socket.settimeout(0.1)
+            try:
+                rcvpkt, addr = client_socket.recvfrom(1024)
+            except:
+                break
+                rcvpkt, addr = client_socket.recvfrom(1024)
 
+        # Next call will be 1
         call = 1
 
+    # If this is a call 1
     elif call == 1:
+        # Calcuate the checksum, order it sequence 1, and send w/ the data
         checksum = make_checksum(data)
         sndpkt = make_pkt(b'1', data, checksum)
         udt_send(sndpkt)
 
-        rcvpkt, addr = client_socket.recvfrom(1024)
+        # If the packet is received but data or ACK is corrupt, repeat.
+        # When none of them are corrupt, call will change to 1 and move on
+        client_socket.settimeout(0.1)
+        try:
+            rcvpkt, addr = client_socket.recvfrom(1024)
+        except:
+            break
+
         while rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt, checksum) is True or isACK(rcvpkt, b'0') is True):
             udt_send(sndpkt)
-            rcvpkt, addr = client_socket.recvfrom(1024)
+            client_socket.settimeout(0.1)
+            try:
+                rcvpkt, addr = client_socket.recvfrom(1024)
+            except:
+                break
 
+        # Next call will be 0
         call = 0
-
-    print('\n')
