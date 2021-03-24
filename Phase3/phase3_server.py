@@ -23,6 +23,7 @@ def notcorrupt(rcvpkt):
     try:
         byte = sum(array.array('H', data))
     except ValueError:
+        print('Done.')
         exit()
     byte = (byte >> 16) + (byte & 0xffff)
     byte += byte >> 16
@@ -121,15 +122,17 @@ print('Waiting...')
 
 # Selects the option
 option, addr = server_socket.recvfrom(2048)
+
+# Option 1: No errors. 2: 20% chance ACk corrupt. 3: 20% chance data corrupt.
 if option == b'1':
     DATA_err = 0
     ACK_err  = 0
 elif option == b'2':
-    DATA_err = 20
-    ACK_err  = 0
-elif option == b'3':
     DATA_err = 0
     ACK_err  = 20
+elif option == b'3':
+    DATA_err = 20
+    ACK_err  = 0
 
 new_file = open('output.jpg', 'wb')
 

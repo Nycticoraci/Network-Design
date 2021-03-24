@@ -103,7 +103,7 @@ for data in rdt_send:
             rcvpkt, addr = client_socket.recvfrom(1024)
         except:
             break
-            
+
         while rdt_rcv(rcvpkt) is True and (corrupt(rcvpkt, checksum) is True or isACK(rcvpkt, b'1') is True):
             udt_send(sndpkt)
             client_socket.settimeout(0.1)
@@ -141,3 +141,5 @@ for data in rdt_send:
 
         # Next call will be 0
         call = 0
+        
+print('Done.')
