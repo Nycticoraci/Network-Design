@@ -16,6 +16,8 @@ root.withdraw()
 file_name = simpledialog.askstring(title = 'Client Input',
                                   prompt = 'Hello friend! What is the path for your file?')
 
+
+
 def read_file(data, size):
     packet_list = []
     user_file = open(data, 'rb')
@@ -75,7 +77,6 @@ def isACK(rcvpkt, check):
         return False
 
 
-
 file_size = os.stat(file_name).st_size
 number_of_receives = math.ceil(file_size / 1024)
 print('Number of receives is ' + str(number_of_receives))
@@ -108,4 +109,4 @@ for data in rdt_send:
 
         call = 0
 
-print('end\n')
+    print('\n')
