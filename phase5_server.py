@@ -1,4 +1,5 @@
 import array
+import pickle
 from socket import *
 
 
@@ -37,13 +38,11 @@ def checksum(data):
     byte += byte >> 16
     checksum_recalc = (~byte) & 0xffff
     checksum_recalc = str(checksum_recalc).encode()
-    while len(checksum_recalc) < 5:
-        checksum_recalc = b'0' + checksum_recalc
     return checksum_recalc
 
 
 def make_pkt(expectedseqnum, checksum):
-    return str(expectedseqnum).encode() + checksum
+    return [str(expectedseqnum).encode(), checksum]
 
 
 def udt_send(sndpkt, addr):
@@ -51,18 +50,7 @@ def udt_send(sndpkt, addr):
 
 
 def extract_data(rcvpkt):
-    try:
-        for seq in range(1, 3):
-            extractedseqnum = int(rcvpkt[:seq])
-    except:
-        seq -= 1
-        extractedseqnum = int(rcvpkt[:seq])
-        pass
-
-    chksm = rcvpkt[-5:]
-    data = rcvpkt[seq:][:-5]
-
-    return extractedseqnum, data, chksm
+    return int(rcvpkt[0].decode()), rcvpkt[1], rcvpkt[2]
 
 
 HOST = 'localhost'
@@ -72,16 +60,15 @@ server_socket.bind((HOST, PORT))
 
 expectedseqnum = 0
 new_file = open('output.jpg', 'wb')
+rcvpkt, addr = server_socket.recvfrom(2048)
 
 while True:
     rcvpkt, addr = server_socket.recvfrom(2048)
+    rcvpkt = pickle.loads(rcvpkt)
     extractedseqnum, data, chksm = extract_data(rcvpkt)
-    print(extractedseqnum)
-    print(data)
-    print(chksm)
     if rdt_rcv(rcvpkt) is True and notcorrupt(data, chksm) is True and hasseqnum(extractedseqnum, expectedseqnum) is True:
         deliver_data(data)
-        sndpkt = make_pkt(expectedseqnum, checksum(data))
+        sndpkt = pickle.dumps(make_pkt(expectedseqnum, checksum(data)))
         udt_send(sndpkt, addr)
         expectedseqnum += 1
     else:
