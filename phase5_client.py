@@ -2,6 +2,7 @@ import os
 import time
 import math
 import array
+import random
 import pickle
 import datetime
 from socket import *
@@ -60,10 +61,24 @@ def corrupt(rcvpkt, chksm):
         return True
 
 
+def ack_error(rcvpkt, err_rate):
+    err_chance = random.randint(1, 101)
+    if err_chance < err_rate:
+        rcvpkt[0] = str(int(rcvpkt[0].decode()) + random.randint(1, 101)).encode()
+    return rcvpkt
+
+
+def ack_loss(rcvpkt, lss_rate):
+    lss_chance = random.randint(1, 101)
+    if lss_chance < lss_rate:
+        rcvpkt = None
+    return rcvpkt
+
+
 HOST = 'localhost'
 PORT = 12000
 client_socket = socket(AF_INET, SOCK_DGRAM)
-client_socket.settimeout(0.01)
+client_socket.settimeout(0.1)
 
 file_name = 'a.jpg'
 file_data = open(file_name, 'rb')
@@ -77,24 +92,34 @@ sndpkt = [None] * sndpkt_size
 done = False
 timeout = False
 
-option = input('Selection option [ 1: No Error/ 2: ACK Error/ 3: Data Error/ 4: ACK Loss/ 5. Data Loss]: ')
-ACK_ls = 0
-ACK_err = 0
+option = input('Selection option'
+               '[1: No Error (Default)/ 2: ACK Error/ 3: Data Error/ 4: ACK Loss/ 5: Data Loss]: ')
+
+ack_err = 0
+ack_lss = 0
 if int(option) in range(0, 6):
-    if option.encode() == b'4':
-        ACK_ls = 21
-    elif option.encode() == b'2':
-        ACK_err = 0
+    if option.encode() == b'2':
+        ack_err = 20
+    elif option.encode() == b'4':
+        ack_lss = 20
     option = option.encode()
 else:
     option = b'1'
 
 print(datetime.datetime.now())
+
 udt_send(option)
 
 while not done:
+    if timeout is True:
+        start_timer = time.time()
+        for base in range(nextseqnum - 1):
+            udt_send(sndpkt[base])
+        timeout = False
+
     if nextseqnum < base + N:
         chksm = checksum(data)
+        print(chksm)
         sndpkt[nextseqnum] = pickle.dumps((make_pkt(nextseqnum, data, chksm)))
         udt_send(sndpkt[nextseqnum])
         if base == nextseqnum:
@@ -104,14 +129,11 @@ while not done:
     else:
         refuse_data(data)
 
-    if timeout is True:
-        start_timer = time.time()
-        for base in range(nextseqnum - 1):
-            udt_send(sndpkt[base])
-        timeout = False
-
     rcvpkt, addr = client_socket.recvfrom(1024)
     rcvpkt = pickle.loads(rcvpkt)
+
+    rcvpkt = ack_error(rcvpkt, ack_err)
+    rcvpkt = ack_loss(rcvpkt, ack_lss)
 
     if rdt_rcv(rcvpkt) is True and notcorrupt(rcvpkt, chksm) is True:
         base = getacknum(rcvpkt) + 1
