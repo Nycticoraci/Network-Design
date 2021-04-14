@@ -1,6 +1,7 @@
 import array
 import random
 import pickle
+import datetime
 from socket import *
 
 
@@ -100,6 +101,10 @@ elif rcvpkt == b'5':
 
 while True:
     rcvpkt, addr = server_socket.recvfrom(2048)
+
+    if rcvpkt == b'EOF':
+        break
+
     rcvpkt = pickle.loads(rcvpkt)
 
     extractedseqnum = int(rcvpkt[0].decode())
@@ -120,3 +125,6 @@ while True:
             udt_send(sndpkt, addr)
         except NameError:
             pass
+
+new_file.close()
+print('Done.')

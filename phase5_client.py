@@ -123,7 +123,7 @@ if int(option) in range(1, 6):
 else:
     option = b'1'
 
-print(datetime.datetime.now())
+start_time = datetime.datetime.now()
 
 udt_send(option)
 
@@ -160,3 +160,8 @@ while not done:
     # Completes after the final packet is sent
     if nextseqnum == sndpkt_size:
         done = True
+        udt_send(b'EOF')
+
+client_socket.close()
+end_time = datetime.datetime.now()
+print('Finished in ' + str((end_time - start_time)))
