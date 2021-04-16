@@ -127,6 +127,7 @@ start_time = datetime.datetime.now()
 
 udt_send(option)
 
+rcvpkt = False
 while not done:
     if nextseqnum < base + N:
         chksm = checksum(data)
