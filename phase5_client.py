@@ -105,6 +105,7 @@ sndpkt = [None] * sndpkt_size
 
 done = False
 timeout = False
+rcvpkt = False
 
 option = input('Selection option'
                '[1: No Error (Default)/ 2: ACK Error/ 3: Data Error/ 4: ACK Loss/ 5: Data Loss]: ')
@@ -112,24 +113,26 @@ option = input('Selection option'
 # By default, the ACK error/loss values are 0 and only change if option 2 or 4 is chosen
 ack_err = 0
 ack_lss = 0
-
 # If the inputted option is 1-5, perform the action related to that number. If not, default to 1 (no errors)
-if int(option) in range(1, 6):
-    if option.encode() == b'2':
-        ack_err = 20
-    elif option.encode() == b'4':
-        ack_lss = 20
-    option = option.encode()
-else:
+try:
+    if int(option) in range(1, 6):
+        if option.encode() == b'2':
+            ack_err = 70
+        elif option.encode() == b'4':
+            ack_lss = 70
+        option = option.encode()
+    else:
+        option = b'1'
+except ValueError:
     option = b'1'
+
+udt_send(option)
+udt_send(str(sndpkt_size).encode())
 
 start_time = datetime.datetime.now()
 
-udt_send(option)
-
-rcvpkt = False
 while not done:
-    if nextseqnum < base + N:
+    if nextseqnum < base + N and nextseqnum < sndpkt_size:
         chksm = checksum(data)
         sndpkt[nextseqnum] = pickle.dumps((make_pkt(nextseqnum, data, chksm)))
         udt_send(sndpkt[nextseqnum])
@@ -159,9 +162,11 @@ while not done:
         pass
 
     # Completes after the final packet is sent
-    if nextseqnum == sndpkt_size:
-        done = True
-        udt_send(b'EOF')
+    try:
+        if getacknum(rcvpkt) == sndpkt_size - 1:
+            done = True
+    except TypeError:
+        pass
 
 client_socket.close()
 end_time = datetime.datetime.now()

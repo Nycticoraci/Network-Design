@@ -1,14 +1,12 @@
 import array
 import random
 import pickle
-import datetime
 from socket import *
 
 
 # If a packet is not lost, return true, else, false
 def rdt_rcv(rcvpkt):
     if rcvpkt:
-        #print('True 1')
         return True
     else:
         return False
@@ -17,7 +15,6 @@ def rdt_rcv(rcvpkt):
 # If the recomputed checksum equals the one sent in the packet, return true, else, false
 def notcorrupt(data, chksm):
     if data == chksm:
-        #print('True 2')
         return True
     else:
         return False
@@ -26,7 +23,6 @@ def notcorrupt(data, chksm):
 # Checks the sequence # from the packet and compares it to the serverside expected value
 def hasseqnum(extractedseqnum, expectedseqnum):
     if extractedseqnum == expectedseqnum:
-        #print('True 3')
         return True
     else:
         return False
@@ -59,15 +55,11 @@ def udt_send(sndpkt, addr):
     server_socket.sendto(sndpkt, addr)
 
 
-# If the random chance triggers, the data will be rotated 1 byte, enough to create a different checksum (arbitrary)
+# If the random chance triggers, the data will be "corrupted" to be 1024 bytes of "0001"
 def data_error(data, err_rate):
     err_chance = random.randint(1, 101)
     if err_chance < err_rate:
-        #print('!!! DATA ERROR !!!')
-        l_shift_data = data[0:1]
-        r_shift_data = data[1:]
-        shifted_data = r_shift_data + l_shift_data
-        data = shifted_data
+        data = b'1' * 1024
     return data
 
 
@@ -75,7 +67,6 @@ def data_error(data, err_rate):
 def data_loss(rcvpkt, lss_rate):
     lss_chance = random.randint(1, 101)
     if lss_chance < lss_rate:
-        #print('!!! DATA LOSS !!!')
         rcvpkt = False
     return rcvpkt
 
@@ -95,22 +86,21 @@ data_err = 0
 data_lss = 0
 # If the received value is either 3 or 5, adjust the data error/loss accordingly
 if rcvpkt == b'3':
-    data_err = 20
+    data_err = 70
 elif rcvpkt == b'5':
-    data_lss = 20
+    data_lss = 70
+
+sndpkt_size, addr = server_socket.recvfrom(2048)
+sndpkt_size = int(sndpkt_size.decode())
 
 while True:
     rcvpkt, addr = server_socket.recvfrom(2048)
-
-    if rcvpkt == b'EOF':
-        break
-
     rcvpkt = pickle.loads(rcvpkt)
 
     extractedseqnum = int(rcvpkt[0].decode())
     data            = data_error(rcvpkt[1], data_err)
     chksm           = rcvpkt[2]
-    chksm_recalc = checksum(data)
+    chksm_recalc    = checksum(data)
 
     rcvpkt = data_loss(rcvpkt, data_lss)
 
@@ -125,6 +115,9 @@ while True:
             udt_send(sndpkt, addr)
         except NameError:
             pass
+
+    if expectedseqnum == sndpkt_size:
+        break
 
 new_file.close()
 print('Done.')
