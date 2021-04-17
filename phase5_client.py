@@ -70,12 +70,11 @@ def corrupt(rcvpkt, chksm):
         return True
 
 
-# If the random chance triggers, a random number between 1 and 100 will be added to the ACK (arbitrary error algorithm)
+# If the random chance triggers, the ACK will be set to an incorrect value
 def ack_error(rcvpkt, err_rate):
     err_chance = random.randint(1, 101)
     if err_chance < err_rate:
-        #print('!!! ACK ERROR !!!')
-        rcvpkt[0] = str(int(rcvpkt[0].decode()) + random.randint(1, 101)).encode()
+        rcvpkt[0] = b'!'
     return rcvpkt
 
 
@@ -83,7 +82,6 @@ def ack_error(rcvpkt, err_rate):
 def ack_loss(rcvpkt, lss_rate):
     lss_chance = random.randint(1, 101)
     if lss_chance < lss_rate:
-        #print('!!! ACK LOSS !!!')
         rcvpkt = None
     return rcvpkt
 
@@ -91,21 +89,20 @@ def ack_loss(rcvpkt, lss_rate):
 HOST = 'localhost'
 PORT = 12000
 client_socket = socket(AF_INET, SOCK_DGRAM)
-client_socket.settimeout(0.01) # Smallest timeout value that works in testing
+client_socket.settimeout(0.0005) # Timeout time
 
 file_name = input('Input filename: ')
 file_data = open(file_name, 'rb')
 data = rdt_send(file_data)
 sndpkt_size = math.ceil(os.stat(file_name).st_size / 1024)
 
-base = 0
-nextseqnum = 0
-N = 7
-sndpkt = [None] * sndpkt_size
+done = False        # The loop will continue until the last value is
+rcvpkt = False      # rcvpkt is assumed to be corrupt until proven not corrupt
 
-done = False
-timeout = False
-rcvpkt = False
+N = 7                           # Window size
+base = 0                        # Starting base index
+nextseqnum = 0                  # Starting sequence number
+sndpkt = [None] * sndpkt_size   # Preallocates the sndpkt array
 
 option = input('Selection option'
                '[1: No Error (Default)/ 2: ACK Error/ 3: Data Error/ 4: ACK Loss/ 5: Data Loss]: ')
@@ -131,6 +128,7 @@ udt_send(option)
 start_time = datetime.datetime.now()
 
 while not done:
+    # Checks that the sequence number is below the window AND that it hasn't sent every packet already
     if nextseqnum < base + N and nextseqnum < sndpkt_size:
         chksm = checksum(data)
         sndpkt[nextseqnum] = pickle.dumps((make_pkt(nextseqnum, data, chksm)))
@@ -142,6 +140,7 @@ while not done:
     else:
         refuse_data(data)
 
+    # Waits to receive the ACK packet, times out at value sent above
     try:
         rcvpkt, addr = client_socket.recvfrom(1024)
         rcvpkt = pickle.loads(rcvpkt)
@@ -154,19 +153,20 @@ while not done:
 
     # Updates the base to the last successfully received packet
     if rdt_rcv(rcvpkt) is True and notcorrupt(rcvpkt, chksm) is True:
-        base = getacknum(rcvpkt) + 1
+        try:
+            base = getacknum(rcvpkt) + 1
+        # But will pass if an ACK error is detected
+        except ValueError:
+            pass
 
     # Do nothing otherwise (this is here to satisfy the FSM and could be removed)
     if rdt_rcv(rcvpkt) is True and corrupt(rcvpkt, chksm) is True:
         pass
 
-    # Completes after the final packet is sent
-    try:
-        if base == sndpkt_size:
+    # Completes after the final packet is sent so the file can be closed
+    if base == sndpkt_size:
             done = True
             udt_send(b'EOF')
-    except TypeError:
-        pass
 
 client_socket.close()
 end_time = datetime.datetime.now()

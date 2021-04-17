@@ -3,6 +3,8 @@ import random
 import pickle
 from socket import *
 
+# This script uses "pickle." It is a module that allows lists to be sent intact over sockets.
+
 
 # If a packet is not lost, return true, else, false
 def rdt_rcv(rcvpkt):
@@ -55,11 +57,11 @@ def udt_send(sndpkt, addr):
     server_socket.sendto(sndpkt, addr)
 
 
-# If the random chance triggers, the data will be "corrupted" to be 1024 bytes of "0001"
+# If the random chance triggers, the data will be "corrupted" to be 1025 bytes of "0001" (an impossible value otherwise)
 def data_error(data, err_rate):
     err_chance = random.randint(1, 101)
     if err_chance < err_rate:
-        data = b'1' * 1024
+        data = b'1' * 1025
     return data
 
 
@@ -79,40 +81,45 @@ server_socket.bind((HOST, PORT))
 expectedseqnum = 0
 new_file = open('output.jpg', 'wb')
 
-rcvpkt, addr = server_socket.recvfrom(2048)
+option, addr = server_socket.recvfrom(2048)
 
 # Data error and loss default to 0
 data_err = 0
 data_lss = 0
 # If the received value is either 3 or 5, adjust the data error/loss accordingly
-if rcvpkt == b'3':
+if option == b'3':
     data_err = 70
-elif rcvpkt == b'5':
+elif option == b'5':
     data_lss = 70
 
+# MAIN FSM LOOP STARTS HERE
 while True:
+    # Receives the packet
     rcvpkt, addr = server_socket.recvfrom(2048)
 
-    # End of file
+    # The client sends "EOF" when the last packet has been ACK'd and the server knows it can close the output file
     if rcvpkt == b'EOF':
         break
 
+    # Breaks the data into its principle parts (sequence number, data, checksum) and recalculates checksum from the data
     rcvpkt          = pickle.loads(rcvpkt)
-    extractedseqnum = int(rcvpkt[0].decode())
-    data            = data_error(rcvpkt[1], data_err)
+    extractedseqnum = int(rcvpkt[0].decode())           # Automatically converts the byte value to an int
+    data            = data_error(rcvpkt[1], data_err)   # Corruption function is built in to the data extraction
     chksm           = rcvpkt[2]
     chksm_recalc    = checksum(data)
 
-    rcvpkt = data_loss(rcvpkt, data_lss)
+    rcvpkt = data_loss(rcvpkt, data_lss)                # Data loss is calculated after to avoid NoneType packet errors
 
+    # The main conditional for the sender via the FSM
     if rdt_rcv(rcvpkt) is True and notcorrupt(chksm_recalc, chksm) is True and hasseqnum(extractedseqnum, expectedseqnum) is True:
         deliver_data(data)
         sndpkt = pickle.dumps(make_pkt(expectedseqnum, chksm_recalc))
         udt_send(sndpkt, addr)
         expectedseqnum += 1
     else:
-        # This error triggers if the very first packet gets corrupted and sndpkt() hasn't even had a chance to be made
+        # This error triggers if the very first packet gets corrupted and sndpkt() hasn't had a chance to be made once
         try:
+            # "Default" (as seen on the FSM)
             udt_send(sndpkt, addr)
         except NameError:
             pass
