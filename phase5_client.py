@@ -127,7 +127,6 @@ except ValueError:
     option = b'1'
 
 udt_send(option)
-udt_send(str(sndpkt_size).encode())
 
 start_time = datetime.datetime.now()
 
@@ -163,8 +162,9 @@ while not done:
 
     # Completes after the final packet is sent
     try:
-        if getacknum(rcvpkt) == sndpkt_size - 1:
+        if base == sndpkt_size:
             done = True
+            udt_send(b'EOF')
     except TypeError:
         pass
 

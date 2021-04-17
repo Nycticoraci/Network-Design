@@ -90,13 +90,14 @@ if rcvpkt == b'3':
 elif rcvpkt == b'5':
     data_lss = 70
 
-sndpkt_size, addr = server_socket.recvfrom(2048)
-sndpkt_size = int(sndpkt_size.decode())
-
 while True:
     rcvpkt, addr = server_socket.recvfrom(2048)
-    rcvpkt = pickle.loads(rcvpkt)
 
+    # End of file
+    if rcvpkt == b'EOF':
+        break
+
+    rcvpkt          = pickle.loads(rcvpkt)
     extractedseqnum = int(rcvpkt[0].decode())
     data            = data_error(rcvpkt[1], data_err)
     chksm           = rcvpkt[2]
@@ -115,9 +116,6 @@ while True:
             udt_send(sndpkt, addr)
         except NameError:
             pass
-
-    if expectedseqnum == sndpkt_size:
-        break
 
 new_file.close()
 print('Done.')
