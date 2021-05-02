@@ -4,6 +4,8 @@ import pickle
 from socket import *
 
 # This script uses "pickle." It is a module that allows lists to be sent intact over sockets.
+ERROR = 20
+DEBUG = True
 
 
 # If a packet is not lost, return true, else, false
@@ -61,7 +63,18 @@ def udt_send(sndpkt, addr):
 def data_error(data, err_rate):
     err_chance = random.randint(1, 101)
     if err_chance < err_rate:
+        if DEBUG is True:
+            print('-----------------------')
+            print('!!! DATA ERROR !!!')
+            print('Old data: ')
+            print(data)
+
         data = b'1' * 1025
+
+        if DEBUG is True:
+            print('New data:')
+            print(data)
+            print('-----------------------')
     return data
 
 
@@ -69,7 +82,18 @@ def data_error(data, err_rate):
 def data_loss(rcvpkt, lss_rate):
     lss_chance = random.randint(1, 101)
     if lss_chance < lss_rate:
-        rcvpkt = False
+        if DEBUG is True:
+            print('-----------------------')
+            print('!!! DATA LOSS !!!')
+            print('Old data: ')
+            print(rcvpkt)
+
+        rcvpkt = None
+
+        if DEBUG is True:
+            print('New data:')
+            print(rcvpkt)
+            print('-----------------------')
     return rcvpkt
 
 
@@ -88,9 +112,9 @@ data_err = 0
 data_lss = 0
 # If the received value is either 3 or 5, adjust the data error/loss accordingly
 if option == b'3':
-    data_err = 70
+    data_err = ERROR
 elif option == b'5':
-    data_lss = 70
+    data_lss = ERROR
 
 # MAIN FSM LOOP STARTS HERE
 while True:
@@ -104,6 +128,8 @@ while True:
     # Breaks the data into its principle parts (sequence number, data, checksum) and recalculates checksum from the data
     rcvpkt          = pickle.loads(rcvpkt)
     extractedseqnum = int(rcvpkt[0].decode())           # Automatically converts the byte value to an int
+    if DEBUG is True:
+        print('Received packet ' + str(extractedseqnum))
     data            = data_error(rcvpkt[1], data_err)   # Corruption function is built in to the data extraction
     chksm           = rcvpkt[2]
     chksm_recalc    = checksum(data)
@@ -115,12 +141,16 @@ while True:
         deliver_data(data)
         sndpkt = pickle.dumps(make_pkt(expectedseqnum, chksm_recalc))
         udt_send(sndpkt, addr)
+        if DEBUG is True:
+            print('Sent ACK ' + str(expectedseqnum))
         expectedseqnum += 1
     else:
         # This error triggers if the very first packet gets corrupted and sndpkt() hasn't had a chance to be made once
         try:
             # "Default" (as seen on the FSM)
             udt_send(sndpkt, addr)
+            if DEBUG is True:
+                print('Sent ACK ' + str(expectedseqnum - 1))
         except NameError:
             pass
 

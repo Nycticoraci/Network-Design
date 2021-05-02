@@ -7,6 +7,10 @@ import pickle
 import datetime
 from socket import *
 
+# This script uses "pickle." It is a module that allows lists to be sent intact over sockets.
+ERROR = 20
+DEBUG = True
+
 
 # Reads the file one line at a time in 1024 byte chunks
 def rdt_send(data):
@@ -74,7 +78,18 @@ def corrupt(rcvpkt, chksm):
 def ack_error(rcvpkt, err_rate):
     err_chance = random.randint(1, 101)
     if err_chance < err_rate:
+        if DEBUG is True:
+            print('-----------------------')
+            print('!!! ACK ERROR !!!')
+            print('Old ACK:')
+            print(rcvpkt)
+
         rcvpkt[0] = b'!'
+
+        if DEBUG is True:
+            print('New ACK:')
+            print(rcvpkt)
+            print('-----------------------')
     return rcvpkt
 
 
@@ -82,7 +97,18 @@ def ack_error(rcvpkt, err_rate):
 def ack_loss(rcvpkt, lss_rate):
     lss_chance = random.randint(1, 101)
     if lss_chance < lss_rate:
+        if DEBUG is True:
+            print('-----------------------')
+            print('!!! ACK LOSS !!!')
+            print('Old ACK:')
+            print(rcvpkt)
+
         rcvpkt = None
+
+        if DEBUG is True:
+            print('New ACK:')
+            print(rcvpkt)
+            print('-----------------------')
     return rcvpkt
 
 
@@ -90,8 +116,13 @@ HOST = 'localhost'
 PORT = 12000
 client_socket = socket(AF_INET, SOCK_DGRAM)
 client_socket.settimeout(0.0005) # Timeout time
+if DEBUG is True:
+    client_socket.settimeout(0.05)
 
 file_name = input('Input filename: ')
+if file_name == '':
+    file_name = 'g.jpg'
+
 file_data = open(file_name, 'rb')
 data = rdt_send(file_data)
 sndpkt_size = math.ceil(os.stat(file_name).st_size / 1024)
@@ -99,7 +130,7 @@ sndpkt_size = math.ceil(os.stat(file_name).st_size / 1024)
 done = False        # The loop will continue until the last value is
 rcvpkt = False      # rcvpkt is assumed to be corrupt until proven not corrupt
 
-N = 7                           # Window size
+N = 3                           # Window size
 base = 0                        # Starting base index
 nextseqnum = 0                  # Starting sequence number
 sndpkt = [None] * sndpkt_size   # Preallocates the sndpkt array
@@ -114,14 +145,16 @@ ack_lss = 0
 try:
     if int(option) in range(1, 6):
         if option.encode() == b'2':
-            ack_err = 70
+            ack_err = ERROR
         elif option.encode() == b'4':
-            ack_lss = 70
+            ack_lss = ERROR
         option = option.encode()
     else:
         option = b'1'
 except ValueError:
     option = b'1'
+
+print('Window size: ' + str(N))
 
 udt_send(option)
 
@@ -133,8 +166,8 @@ while not done:
         chksm = checksum(data)
         sndpkt[nextseqnum] = pickle.dumps((make_pkt(nextseqnum, data, chksm)))
         udt_send(sndpkt[nextseqnum])
-        if base == nextseqnum:
-            start_timer = time.time()
+        if DEBUG is True:
+            print('Sent packet ' + str(nextseqnum))
         nextseqnum += 1
         data = rdt_send(file_data)
     else:
@@ -148,15 +181,23 @@ while not done:
         rcvpkt = ack_loss(rcvpkt, ack_lss)
     # This is the timeout function; it resends the current window when a data error causes a timeout
     except:
+        if DEBUG is True:
+            print('!!! TIMEOUT !!!')
         for packet_in_window in range(base, nextseqnum):
             udt_send(sndpkt[packet_in_window])
+            if DEBUG is True:
+                print('Resent packet ' + str(packet_in_window))
 
     # Updates the base to the last successfully received packet
     if rdt_rcv(rcvpkt) is True and notcorrupt(rcvpkt, chksm) is True:
         try:
             base = getacknum(rcvpkt) + 1
+            if DEBUG is True:
+                print(str(base - 1) + ' ACKed successfully')
         # But will pass if an ACK error is detected
         except ValueError:
+            if DEBUG is True:
+                print(str(base + 1) + ' ACKed unsuccessfully')
             pass
 
     # Do nothing otherwise (this is here to satisfy the FSM and could be removed)
